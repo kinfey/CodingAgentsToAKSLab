@@ -1,8 +1,18 @@
 # Lab 04 — Deploy to Production: Bicep + Helm + GitHub Actions
 
-> ⏱ ~75 min · Run the full production rollout with **Bicep** across both planes, land the orchestrator on AKS with Helm, smoke-test it, run the golden eval suite against live Azure, then hand the whole thing to a secret-less CI pipeline.
+> ⏱ **Fast track ~30 min · Full lab ~75 min** · Run the full production rollout with **Bicep** across both planes, land the orchestrator on AKS with Helm, smoke-test it, run the golden eval suite against live Azure, then hand the whole thing to a secret-less CI pipeline.
 
 🇨🇳 [中文版](./README.zh.md)
+
+### ⏱ Running the whole series in 2 hours?
+
+| | Steps | Budget |
+|---|---|---|
+| **Core** | 1, 2, 4, 5, 6, 7, 9 | ~30 min |
+| *Optional* | 3 what-if preview · 8 observability · 10 Day-2 partial rollout · 11 cost & scale posture | ~45 min |
+
+> Do not skip **Teardown** at the end, even on the fast track — the AKS cluster
+> and Container Apps environment bill by the hour.
 
 ## The story
 
@@ -144,7 +154,7 @@ done
 
 ---
 
-## Step 3 — Preview the ACA plane with `what-if`
+## Step 3 — Preview the ACA plane with `what-if` *(optional)*
 
 Never apply Bicep blind. Preview the orchestrator's downstream dependency first:
 
@@ -341,7 +351,7 @@ fails, a specialist or MCP server is misconfigured; check
 
 ---
 
-## Step 8 — Observability check
+## Step 8 — Observability check *(optional)*
 
 ```bash
 kubectl -n zavashop logs deploy/orchestrator --tail=50
@@ -408,7 +418,7 @@ their laptop.
 
 ---
 
-## Step 10 — Day-2: partial rollout
+## Step 10 — Day-2: partial rollout *(optional)*
 
 Real changes rarely touch all ten services. Change one prompt and ship only
 that image.
@@ -469,7 +479,7 @@ kubectl -n zavashop rollout status deploy/orchestrator
 
 ---
 
-## Step 11 — Cost and scale posture
+## Step 11 — Cost and scale posture *(optional)*
 
 ```bash
 kubectl -n zavashop get hpa 2>/dev/null

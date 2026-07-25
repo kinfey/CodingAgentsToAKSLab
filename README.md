@@ -18,12 +18,16 @@ You are the platform engineer. Four labs, one afternoon, from `git clone` to a l
 
 **These labs do not ask you to generate code.** The application under `src/` is the deliverable you received. You read it, you package it, you deploy it, you operate it.
 
-| # | Lab | Time | Outcome |
-|---|---|---|---|
-| 01 | [Deployment Foundation](./labs/lab-01-deployment-foundation/README.md) | ~60 min | Take delivery of the app, run the fleet locally with Docker Compose, and lay the Azure foundation every later deployment depends on: RG, ACR, Log Analytics, UAMI, Entra group, Key Vault, Defender, GitHub OIDC |
-| 02 | [Deploy to Container Apps](./labs/lab-02-deploy-container-apps/README.md) | ~60 min | Build 10 images with ACR Tasks and deploy 8 services to **Azure Container Apps** through one reusable **Bicep** module |
-| 03 | [Deploy the AKS Cluster](./labs/lab-03-deploy-aks-cluster/README.md) | ~75 min | Provision a landing-zone-shaped **AKS** cluster: **Microsoft Entra ID** + Azure RBAC, Workload Identity, Key Vault CSI, Azure Policy, Defender — then read and render the **Helm** chart |
-| 04 | [Deploy to Production](./labs/lab-04-deploy-production/README.md) | ~75 min | The real release: gates → `what-if` → **Bicep** to ACA → **Helm** to AKS → smoke → evals → secret-less GitHub Actions CD → Day-2 rollout and rollback |
+| # | Lab | Fast track | Full | Outcome |
+|---|---|---|---|---|
+| 01 | [Deployment Foundation](./labs/lab-01-deployment-foundation/README.md) | ~25 min | ~60 min | Take delivery of the app, run the fleet locally with Docker Compose, and lay the Azure foundation every later deployment depends on: RG, ACR, Log Analytics, UAMI, Entra group, Key Vault, Defender, GitHub OIDC |
+| 02 | [Deploy to Container Apps](./labs/lab-02-deploy-container-apps/README.md) | ~30 min | ~60 min | Build 10 images with ACR Tasks and deploy 8 services to **Azure Container Apps** through one reusable **Bicep** module |
+| 03 | [Deploy the AKS Cluster](./labs/lab-03-deploy-aks-cluster/README.md) | ~35 min | ~75 min | Provision a landing-zone-shaped **AKS** cluster: **Microsoft Entra ID** + Azure RBAC, Workload Identity, Key Vault CSI, Azure Policy, Defender — then read and render the **Helm** chart |
+| 04 | [Deploy to Production](./labs/lab-04-deploy-production/README.md) | ~30 min | ~75 min | The real release: gates → `what-if` → **Bicep** to ACA → **Helm** to AKS → smoke → evals → secret-less GitHub Actions CD → Day-2 rollout and rollback |
+
+> **Two-hour track.** Each lab opens with a table splitting its steps into **Core**
+> and *Optional*. Do only the Core steps and the whole series lands in ~2 hours;
+> the optional steps are deep dives and no later lab depends on them.
 
 Every lab has a Chinese mirror at `README.zh.md` in the same folder.
 

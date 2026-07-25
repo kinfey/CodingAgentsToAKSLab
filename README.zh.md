@@ -18,12 +18,14 @@
 
 **这套实验不要求你生成代码。** `src/` 下的应用就是你收到的交付物。你要做的是读懂它、打包它、部署它、运维它。
 
-| # | 实验 | 时长 | 产出 |
-|---|---|---|---|
-| 01 | [部署基础](./labs/lab-01-deployment-foundation/README.zh.md) | 约 60 分钟 | 接收交付的应用，用 Docker Compose 在本地跑通舰队，并搭好后续每一次部署都依赖的 Azure 基础：RG、ACR、Log Analytics、UAMI、Entra 组、Key Vault、Defender、GitHub OIDC |
-| 02 | [部署到 Container Apps](./labs/lab-02-deploy-container-apps/README.zh.md) | 约 60 分钟 | 用 ACR Tasks 构建 10 个镜像，并用一个可复用的 **Bicep** 模块把 8 个服务部署到 **Azure Container Apps** |
-| 03 | [部署 AKS 集群](./labs/lab-03-deploy-aks-cluster/README.zh.md) | 约 75 分钟 | 预配符合登陆区规范的 **AKS** 集群：**Microsoft Entra ID** + Azure RBAC、Workload Identity、Key Vault CSI、Azure Policy、Defender —— 然后读懂并离线渲染 **Helm** Chart |
-| 04 | [部署到生产](./labs/lab-04-deploy-production/README.zh.md) | 约 75 分钟 | 真正的发布：门禁 → `what-if` → **Bicep** 发 ACA → **Helm** 发 AKS → 冒烟 → 评测 → 无密钥 GitHub Actions CD → Day-2 局部发布与回滚 |
+| # | 实验 | 快速通道 | 完整 | 产出 |
+|---|---|---|---|---|
+| 01 | [部署基础](./labs/lab-01-deployment-foundation/README.zh.md) | 约 25 分钟 | 约 60 分钟 | 接收交付的应用，用 Docker Compose 在本地跑通舰队，并搭好后续每一次部署都依赖的 Azure 基础：RG、ACR、Log Analytics、UAMI、Entra 组、Key Vault、Defender、GitHub OIDC |
+| 02 | [部署到 Container Apps](./labs/lab-02-deploy-container-apps/README.zh.md) | 约 30 分钟 | 约 60 分钟 | 用 ACR Tasks 构建 10 个镜像，并用一个可复用的 **Bicep** 模块把 8 个服务部署到 **Azure Container Apps** |
+| 03 | [部署 AKS 集群](./labs/lab-03-deploy-aks-cluster/README.zh.md) | 约 35 分钟 | 约 75 分钟 | 预配符合登陆区规范的 **AKS** 集群：**Microsoft Entra ID** + Azure RBAC、Workload Identity、Key Vault CSI、Azure Policy、Defender —— 然后读懂并离线渲染 **Helm** Chart |
+| 04 | [部署到生产](./labs/lab-04-deploy-production/README.zh.md) | 约 30 分钟 | 约 75 分钟 | 真正的发布：门禁 → `what-if` → **Bicep** 发 ACA → **Helm** 发 AKS → 冒烟 → 评测 → 无密钥 GitHub Actions CD → Day-2 局部发布与回滚 |
+
+> **两小时通道。** 每个实验开头都有一张表，把步骤分为 **核心** 和 *可选*。只做核心步骤，整个系列约 2 小时完成；可选步骤是深入讲解，后续实验不依赖它们。
 
 每个实验目录下都同时提供英文 `README.md` 与中文 `README.zh.md`。
 

@@ -1,8 +1,17 @@
 # 实验 02 — 部署到 Container Apps：容器化舰队并用 Bicep 发布
 
-> ⏱ 约 60 分钟 · 从交付源码构建 10 个容器镜像并推送到 ACR，然后用一个可复用的 **Bicep** 模块把 4 个 MCP 服务器 + 4 个专家 Agent 部署到 **Azure Container Apps**。
+> ⏱ **快速通道约 30 分钟 · 完整实验约 60 分钟** · 从交付源码构建 10 个容器镜像并推送到 ACR，然后用一个可复用的 **Bicep** 模块把 4 个 MCP 服务器 + 4 个专家 Agent 部署到 **Azure Container Apps**。
 
 🇬🇧 [English](./README.md)
+
+### ⏱ 想在 2 小时内跑完整个系列？
+
+| | 步骤 | 预算 |
+|---|---|---|
+| **核心** | 2、3、4、5、6、10、11、12 | 约 30 分钟 |
+| *可选* | 1 镜像结构 · 7 Bicep 讲解 · 8 手动部署 · 9 what-if · 13 机密验证 · 14 伸缩行为 | 约 30 分钟 |
+
+> 步骤 8 和 9 是教学性绕路 —— 步骤 10（`deploy.sh`）本来就会部署全部八个应用。走快速通道跳过它们不会少任何基础设施。
 
 ## 场景故事
 
@@ -61,7 +70,7 @@ az account show --query name -o tsv
 
 ---
 
-## 步骤 1 — 构建前先理解镜像结构
+## 步骤 1 — 构建前先理解镜像结构 *（可选）*
 
 交付的应用会构建**一个共享基础镜像**，外加每个服务一个轻量镜像。先阅读两个 Dockerfile。
 
@@ -210,7 +219,7 @@ az containerapp env show -g $RG -n $CAE \
 
 ---
 
-## 步骤 7 — 阅读 Bicep 模块
+## 步骤 7 — 阅读 Bicep 模块 *（可选）*
 
 打开 `infra/aca/agent.bicep`。它会以不同参数被部署 **八次**。逐一理解它固化的五件事：
 
@@ -242,7 +251,7 @@ az bicep build --file infra/aca/agent.bicep --stdout > /dev/null \
 
 ---
 
-## 步骤 8 — 手动部署第一个 MCP 服务器
+## 步骤 8 — 手动部署第一个 MCP 服务器 *（可选）*
 
 手动做第一个，以便清楚地看到模块产出了什么。
 
@@ -283,7 +292,7 @@ az containerapp logs show -g $RG -n inventory-mcp --tail 50
 
 ---
 
-## 步骤 9 — 用 `what-if` 预览
+## 步骤 9 — 用 `what-if` 预览 *（可选）*
 
 在部署剩余七个之前，先预览一个，养成习惯：
 
@@ -391,7 +400,7 @@ curl -fsS -X POST "https://$INVENTORY_FQDN/invoke" \
 
 ---
 
-## 步骤 13 — 确认机密从未出现在参数中
+## 步骤 13 — 确认机密从未出现在参数中 *（可选）*
 
 ```bash
 az containerapp show -g $RG -n inventory \
@@ -409,7 +418,7 @@ az deployment group show -g $RG -n aca-inventory-mcp \
 
 ---
 
-## 步骤 14 — 理解伸缩行为
+## 步骤 14 — 理解伸缩行为 *（可选）*
 
 ```bash
 az containerapp show -g $RG -n pricing \

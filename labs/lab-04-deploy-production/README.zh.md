@@ -1,8 +1,17 @@
 # 实验 04 — 部署到生产：Bicep + Helm + GitHub Actions
 
-> ⏱ 约 75 分钟 · 用 **Bicep** 在两个平面上执行完整的生产发布，用 Helm 把编排器落到 AKS，做冒烟测试，对真实 Azure 环境运行黄金评测集，最后把整套流程交给一条无密钥的 CI 流水线。
+> ⏱ **快速通道约 30 分钟 · 完整实验约 75 分钟** · 用 **Bicep** 在两个平面上执行完整的生产发布，用 Helm 把编排器落到 AKS，做冒烟测试，对真实 Azure 环境运行黄金评测集，最后把整套流程交给一条无密钥的 CI 流水线。
 
 🇬🇧 [English](./README.md)
+
+### ⏱ 想在 2 小时内跑完整个系列？
+
+| | 步骤 | 预算 |
+|---|---|---|
+| **核心** | 1、2、4、5、6、7、9 | 约 30 分钟 |
+| *可选* | 3 what-if 预览 · 8 可观测性 · 10 Day-2 局部发布 · 11 成本与伸缩姿态 | 约 45 分钟 |
+
+> 即使走快速通道也不要跳过最后的 **资源清理** —— AKS 集群和 Container Apps 环境是按小时计费的。
 
 ## 场景故事
 
@@ -140,7 +149,7 @@ done
 
 ---
 
-## 步骤 3 — 用 `what-if` 预览 ACA 平面
+## 步骤 3 — 用 `what-if` 预览 ACA 平面 *（可选）*
 
 绝不盲目应用 Bicep。先预览编排器的下游依赖：
 
@@ -331,7 +340,7 @@ failures=0
 
 ---
 
-## 步骤 8 — 可观测性检查
+## 步骤 8 — 可观测性检查 *（可选）*
 
 ```bash
 kubectl -n zavashop logs deploy/orchestrator --tail=50
@@ -396,7 +405,7 @@ gh run watch --repo "$GH_REPO_SLUG"
 
 ---
 
-## 步骤 10 — Day-2：局部发布
+## 步骤 10 — Day-2：局部发布 *（可选）*
 
 真实的变更很少同时涉及十个服务。改一个提示词，只发布那一个镜像。
 
@@ -456,7 +465,7 @@ kubectl -n zavashop rollout status deploy/orchestrator
 
 ---
 
-## 步骤 11 — 成本与伸缩姿态
+## 步骤 11 — 成本与伸缩姿态 *（可选）*
 
 ```bash
 kubectl -n zavashop get hpa 2>/dev/null

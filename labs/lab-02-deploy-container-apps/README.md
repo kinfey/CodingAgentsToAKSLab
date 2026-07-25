@@ -1,8 +1,18 @@
 # Lab 02 — Deploy to Container Apps: Containerize the Fleet & Ship with Bicep
 
-> ⏱ ~60 min · Build 10 container images from the delivered source, push them to ACR, and deploy the 4 MCP servers + 4 specialist agents to **Azure Container Apps** using a single reusable **Bicep** module.
+> ⏱ **Fast track ~30 min · Full lab ~60 min** · Build 10 container images from the delivered source, push them to ACR, and deploy the 4 MCP servers + 4 specialist agents to **Azure Container Apps** using a single reusable **Bicep** module.
 
 🇨🇳 [中文版](./README.zh.md)
+
+### ⏱ Running the whole series in 2 hours?
+
+| | Steps | Budget |
+|---|---|---|
+| **Core** | 2, 3, 4, 5, 6, 10, 11, 12 | ~30 min |
+| *Optional* | 1 image layout · 7 Bicep walkthrough · 8 manual deploy · 9 what-if · 13 secret proof · 14 scaling | ~30 min |
+
+> Steps 8 and 9 are teaching detours — Step 10 (`deploy.sh`) deploys all eight
+> apps anyway. Skip them on the fast track and you lose no infrastructure.
 
 ## The story
 
@@ -71,7 +81,7 @@ If `.env.lab` is missing, go back to
 
 ---
 
-## Step 1 — Understand the image layout before you build
+## Step 1 — Understand the image layout before you build *(optional)*
 
 The delivered app builds **one shared base image** plus one thin image per
 service. Read the two Dockerfiles first.
@@ -227,7 +237,7 @@ az containerapp env show -g $RG -n $CAE \
 
 ---
 
-## Step 7 — Read the Bicep module
+## Step 7 — Read the Bicep module *(optional)*
 
 Open `infra/aca/agent.bicep`. It is deployed **eight times** with different
 parameters. Walk through the five things it encodes:
@@ -264,7 +274,7 @@ az bicep build --file infra/aca/agent.bicep --stdout > /dev/null \
 
 ---
 
-## Step 8 — Deploy one MCP server by hand
+## Step 8 — Deploy one MCP server by hand *(optional)*
 
 Do the first one manually so you can see exactly what the module produces.
 
@@ -305,7 +315,7 @@ az containerapp logs show -g $RG -n inventory-mcp --tail 50
 
 ---
 
-## Step 9 — Preview the rest with `what-if`
+## Step 9 — Preview the rest with `what-if` *(optional)*
 
 Before deploying the remaining seven, preview one to build the habit:
 
@@ -417,7 +427,7 @@ Repeat for `supplier`, `logistics`, and `pricing`.
 
 ---
 
-## Step 13 — Confirm the secret never touched a parameter
+## Step 13 — Confirm the secret never touched a parameter *(optional)*
 
 ```bash
 az containerapp show -g $RG -n inventory \
@@ -435,7 +445,7 @@ No output means no token was ever passed as a parameter.
 
 ---
 
-## Step 14 — Understand the scaling behaviour
+## Step 14 — Understand the scaling behaviour *(optional)*
 
 ```bash
 az containerapp show -g $RG -n pricing \

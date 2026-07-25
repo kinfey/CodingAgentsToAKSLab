@@ -1,8 +1,20 @@
 # Lab 01 — Deployment Foundation: Take Delivery of the Fleet & Lay the Azure Groundwork
 
-> ⏱ ~60 min · **No code generation in this lab series.** The multi-agent application already exists under `src/`. You clone it, verify it runs, and build the Azure foundation it will be deployed onto.
+> ⏱ **Fast track ~25 min · Full lab ~60 min** · **No code generation in this lab series.** The multi-agent application already exists under `src/`. You clone it, verify it runs, and build the Azure foundation it will be deployed onto.
 
 🇨🇳 [中文版](./README.zh.md)
+
+### ⏱ Running the whole series in 2 hours?
+
+Do the **core** steps and skip anything marked *(optional)*. Optional steps are
+deep dives — nothing in Labs 02–04 depends on them.
+
+| | Steps | Budget |
+|---|---|---|
+| **Core** | 0, 1, 4, 6, 7, 8, 9, 10, 11, 12, 13, 14 | ~25 min |
+| *Optional* | 2 code tour · 3 quality gate · 5 local fleet run | ~35 min |
+
+> Series budget: **Lab 01 ~25 min · Lab 02 ~30 min · Lab 03 ~35 min · Lab 04 ~30 min ≈ 2 h.**
 
 ## The story
 
@@ -162,7 +174,7 @@ ls infra/aks/helm/zavashop
 
 ---
 
-## Step 2 — 10-minute code tour
+## Step 2 — 10-minute code tour *(optional)*
 
 Read these six files in order. You will not modify them, but every deployment
 decision in Labs 02–04 traces back to one of them.
@@ -189,7 +201,7 @@ The deployment contract you must satisfy in Azure:
 
 ---
 
-## Step 3 — Run the quality gate
+## Step 3 — Run the quality gate *(optional)*
 
 The delivered code ships green. Prove it before you touch Azure — Lab 04's
 deploy workflow refuses to roll if this is red.
@@ -250,7 +262,7 @@ PY
 
 ---
 
-## Step 5 — Run the whole fleet locally (recommended)
+## Step 5 — Run the whole fleet locally *(optional)*
 
 This is the fastest way to understand what you are about to deploy. Docker
 Compose starts all 9 services with the same images Azure will run.

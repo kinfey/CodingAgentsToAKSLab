@@ -1,8 +1,18 @@
 # Lab 03 — Deploy the AKS Cluster: Entra ID, Workload Identity & Helm
 
-> ⏱ ~75 min · Provision a landing-zone-aware AKS cluster, wire Microsoft Entra ID + Azure RBAC, enable Workload Identity and the Key Vault CSI driver, then read and dry-render the delivered Helm chart. The real rollout happens in Lab 04.
+> ⏱ **Fast track ~35 min · Full lab ~75 min** · Provision a landing-zone-aware AKS cluster, wire Microsoft Entra ID + Azure RBAC, enable Workload Identity and the Key Vault CSI driver, then read and dry-render the delivered Helm chart. The real rollout happens in Lab 04.
 
 🇨🇳 [中文版](./README.zh.md)
+
+### ⏱ Running the whole series in 2 hours?
+
+| | Steps | Budget |
+|---|---|---|
+| **Core** | 2, 3, 4, 5, 6, 7, 8, 9, 10, 14, 15 + Part D | ~35 min |
+| *Optional* | 1 cluster shape · 11 chart anatomy · 12 values · 13 security posture · 16 server-side dry run | ~40 min |
+
+> Start Step 2 first — cluster creation runs ~8 min unattended. Read the optional
+> steps while it provisions and you get them for free.
 
 ## The story
 
@@ -67,7 +77,7 @@ exists. The orchestrator image `zavashop/orchestrator:<sha>` is already in ACR.
 
 ## Part A — Build the cluster
 
-### Step 1 — Decide the cluster shape before typing
+### Step 1 — Decide the cluster shape before typing *(optional)*
 
 Every flag in the next command answers one landing-zone design question.
 
@@ -344,7 +354,7 @@ kubectl -n zavashop delete secretproviderclass wif-smoke
 
 ## Part C — Helm: read the chart before you run it
 
-### Step 11 — Chart anatomy
+### Step 11 — Chart anatomy *(optional)*
 
 ```bash
 find infra/aks/helm/zavashop -type f | sort
@@ -369,7 +379,7 @@ Four Kubernetes objects, one per concern:
 | `deployment.yaml` | `Deployment` | Replicas, probes, security context, topology spread, CSI volume |
 | `service.yaml` | `Service` | `LoadBalancer` publishing port 80 → container 8000 |
 
-### Step 12 — Required values
+### Step 12 — Required values *(optional)*
 
 ```bash
 cat infra/aks/helm/zavashop/values.yaml
@@ -389,7 +399,7 @@ Six values have no default and **must** be supplied:
 The chart uses Helm's `required` function, so a missing value fails the render
 rather than deploying a broken pod.
 
-### Step 13 — Read the Deployment's security posture
+### Step 13 — Read the Deployment's security posture *(optional)*
 
 ```bash
 sed -n '15,50p' infra/aks/helm/zavashop/templates/deployment.yaml
@@ -473,7 +483,7 @@ grep -i 'GITHUB_TOKEN' /tmp/zavashop-rendered.yaml
 The only match should be the `cat /mnt/secrets-store/GITHUB-TOKEN` shell
 command in the container args — never a literal token.
 
-### Step 16 — Server-side dry run
+### Step 16 — Server-side dry run *(optional)*
 
 This validates against the live API server, including admission and the Azure
 Policy add-on, without creating anything.

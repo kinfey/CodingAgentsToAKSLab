@@ -1,8 +1,17 @@
 # 实验 03 — 部署 AKS 集群：Entra ID、Workload Identity 与 Helm
 
-> ⏱ 约 75 分钟 · 预配一个符合登陆区规范的 AKS 集群，接入 Microsoft Entra ID + Azure RBAC，启用 Workload Identity 与 Key Vault CSI 驱动，然后阅读并离线渲染交付的 Helm Chart。真正的发布在实验 04。
+> ⏱ **快速通道约 35 分钟 · 完整实验约 75 分钟** · 预配一个符合登陆区规范的 AKS 集群，接入 Microsoft Entra ID + Azure RBAC，启用 Workload Identity 与 Key Vault CSI 驱动，然后阅读并离线渲染交付的 Helm Chart。真正的发布在实验 04。
 
 🇬🇧 [English](./README.md)
+
+### ⏱ 想在 2 小时内跑完整个系列？
+
+| | 步骤 | 预算 |
+|---|---|---|
+| **核心** | 2、3、4、5、6、7、8、9、10、14、15 + 第 D 部分 | 约 35 分钟 |
+| *可选* | 1 集群形态 · 11 Chart 结构 · 12 必填 values · 13 安全姿态 · 16 服务端 dry run | 约 40 分钟 |
+
+> 先启动步骤 2 —— 创建集群大约需要 8 分钟无人值守等待。等待期间阅读可选步骤，等于白赚。
 
 ## 场景故事
 
@@ -57,7 +66,7 @@ echo "$AKS_ADMINS_GROUP_ID"
 
 ## 第 A 部分 — 创建集群
 
-### 步骤 1 — 敲命令之前先决定集群形态
+### 步骤 1 — 敲命令之前先决定集群形态 *（可选）*
 
 下面命令中的每一个参数都在回答一个登陆区设计问题。
 
@@ -323,7 +332,7 @@ kubectl -n zavashop delete secretproviderclass wif-smoke
 
 ## 第 C 部分 — Helm：先读懂 Chart 再运行
 
-### 步骤 11 — Chart 结构
+### 步骤 11 — Chart 结构 *（可选）*
 
 ```bash
 find infra/aks/helm/zavashop -type f | sort
@@ -348,7 +357,7 @@ infra/aks/helm/zavashop/templates/serviceaccount.yaml
 | `deployment.yaml` | `Deployment` | 副本、探针、安全上下文、拓扑分布、CSI 卷 |
 | `service.yaml` | `Service` | `LoadBalancer` 把 80 端口映射到容器 8000 |
 
-### 步骤 12 — 必填 values
+### 步骤 12 — 必填 values *（可选）*
 
 ```bash
 cat infra/aks/helm/zavashop/values.yaml
@@ -367,7 +376,7 @@ cat infra/aks/helm/zavashop/values.yaml
 
 Chart 使用了 Helm 的 `required` 函数，所以缺值会在渲染阶段失败，而不是部署出一个坏 Pod。
 
-### 步骤 13 — 阅读 Deployment 的安全姿态
+### 步骤 13 — 阅读 Deployment 的安全姿态 *（可选）*
 
 ```bash
 sed -n '15,50p' infra/aks/helm/zavashop/templates/deployment.yaml
@@ -449,7 +458,7 @@ grep -i 'GITHUB_TOKEN' /tmp/zavashop-rendered.yaml
 
 唯一匹配应该是容器参数中的 `cat /mnt/secrets-store/GITHUB-TOKEN` 命令 —— 绝不是字面令牌。
 
-### 步骤 16 — 服务端 dry run
+### 步骤 16 — 服务端 dry run *（可选）*
 
 这会针对活的 API 服务器做校验，包括准入控制和 Azure Policy 附加组件，但不创建任何东西。
 
