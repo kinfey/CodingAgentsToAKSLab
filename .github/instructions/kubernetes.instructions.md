@@ -25,13 +25,13 @@ applyTo: "infra/**,**/Dockerfile,**/Chart.yaml,**/values.yaml"
 ## Bicep (ACA)
 
 - `infra/aca/main.bicep` parameters: `acrName`, `envName`, `uamiId`, `copilotModel`.
-- Each ACA module accepts `minReplicas`; Lab 05 deploys specialists and MCPs with `minReplicas: 1` for reliable smoke/eval runs, `maxReplicas: 10`, and an HTTP concurrent-requests rule of 30.
+- Each ACA module accepts `minReplicas`; Lab 02 deploys specialists and MCPs with `minReplicas: 1` for reliable smoke/eval runs, `maxReplicas: 10`, and an HTTP concurrent-requests rule of 30.
 - All env vars referencing secrets use `secretRef`. Secret values are pulled from Key Vault via the `keyVaultUrl` property on the container app.
 
 ## Networking
 
 - AKS uses Azure CNI Overlay, private cluster, API server VNet integration off (lab simplicity — flag for production).
-- Lab 05 exposes ACA specialists and MCP servers with HTTPS ingress so the AKS orchestrator can call their FQDNs from the lab network. Production landing zones should prefer private ingress, private DNS, and controlled egress once VNet integration is in place.
+- Lab 02 exposes ACA specialists and MCP servers with HTTPS ingress so the AKS orchestrator can call their FQDNs from the lab network. Production landing zones should prefer private ingress, private DNS, and controlled egress once VNet integration is in place.
 
 ## Tags
 

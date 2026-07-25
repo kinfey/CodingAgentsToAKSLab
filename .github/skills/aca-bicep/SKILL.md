@@ -75,7 +75,7 @@ probes: [
 ```bicep
 tags: {
   project: 'zavashop'
-  lab: '05'
+  lab: '02'
   agent: name
 }
 ```
@@ -84,4 +84,4 @@ tags: {
 
 - Image tag is the git SHA. `:latest` is a build error.
 - No `value:` for secrets — only `secretRef`.
-- Lab 05 sets `exposeIngress: true` and `minReplicas: 1` for specialists and MCPs so AKS smoke/eval calls can reach ACA FQDNs reliably. Production should revisit private ingress and scale-to-zero once DNS/networking and cold-start budgets are designed.
+- Lab 02 sets `exposeIngress: true` and `minReplicas: 1` for specialists and MCPs so AKS smoke/eval calls can reach ACA FQDNs reliably. Production should revisit private ingress and scale-to-zero once DNS/networking and cold-start budgets are designed.

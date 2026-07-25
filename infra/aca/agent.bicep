@@ -41,7 +41,7 @@ resource app 'Microsoft.App/containerApps@2024-03-01' = {
   location: location
   tags: {
     project: 'zavashop'
-    lab: '05'
+    lab: '02'
     agent: name
   }
   identity: {

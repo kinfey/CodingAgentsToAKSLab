@@ -233,7 +233,7 @@ class FleetPackage(BaseModel):
 10. Docker Compose can run the full local fleet with health checks for all five agents and four MCP servers.
 11. The deployment handoff includes AKS Helm requirements for the orchestrator and ACA Bicep requirements for all four specialists plus all four MCP servers.
 12. Tests include unit tests for contracts, MCP tool tests, A2A integration tests, and eval scenarios; `uv run poe check` passes before `/ship-it`.
-13. Cloud deployment remains gated by Lab 05 landing zone checks: Entra ID, Azure RBAC, Workload Identity, Azure Policy, Container Insights, Defender for Cloud, Key Vault CSI, and git-SHA image tags.
+13. Cloud deployment remains gated by Lab 04 landing zone checks: Entra ID, Azure RBAC, Workload Identity, Azure Policy, Container Insights, Defender for Cloud, Key Vault CSI, and git-SHA image tags.
 
 ## Eval scenarios
 

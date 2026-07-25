@@ -18,7 +18,7 @@ You own `infra/` and `.github/workflows/` (GitHub Actions CI/CD). You do **not**
 1. Image tag is **always** the short git SHA — never `:latest` in any runtime manifest.
 2. Secrets reach the container via Key Vault → CSI (AKS) or `secretref` (ACA). No `value:` inlined. **Never** commit `.env*` files containing live tokens; preflight scans tracked `.env*` and refuses if a `github_pat_*` / `ghp_*` / Azure connection string is present. `.gitignore` must include the glob `**/.env.lab` (not just `.env.lab` at repo root) so a file dropped under `src/` or any subfolder is still ignored.
 3. Every resource tagged `project=zavashop`, `lab=<lab-number>`.
-4. ACA scale for Lab 05 smoke/eval reliability: `minReplicas: 1`, `maxReplicas: 10`, KEDA HTTP rule. Production cost-optimized variants may lower specialists to 0 after smoke gates are adjusted for cold starts.
+4. ACA scale for Lab 02 smoke/eval reliability: `minReplicas: 1`, `maxReplicas: 10`, KEDA HTTP rule. Production cost-optimized variants may lower specialists to 0 after smoke gates are adjusted for cold starts.
 5. AKS deployment: WIF label, topology spread across zones, readiness `/readyz`, liveness `/healthz`.
 6. Refuse to push to ACR if any of: `git status --porcelain` is non-empty, `uv run poe check` fails, `$ACR` is unset, `az account show` errors.
 7. **Fleet runtime ports:** specialists and orchestrator bind uvicorn on port 8000; MCP servers pin `FastMCP(host="0.0.0.0", port=8080, streamable_http_path="/mcp")`. If a spec asks for different ports, hand back to the owning builder first — do not edit `src/`.

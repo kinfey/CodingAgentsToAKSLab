@@ -1,16 +1,18 @@
 # AKS Workload Identity and CSI Handoff
 
-This handoff documents the Lab 05 identity and secret projection checks for the ZavaShop orchestrator on AKS.
+🇨🇳 [中文版](./README.zh.md)
+
+This handoff documents the identity and secret projection checks for the ZavaShop orchestrator on AKS. It is set up in [Lab 03](../../../labs/lab-03-deploy-aks-cluster/README.md) and re-asserted as a release gate in [Lab 04](../../../labs/lab-04-deploy-production/README.md).
 
 ## 1. Re-federate the UAMI
 
-Lab 01 creates the UAMI and AKS OIDC issuer. Re-create or verify the federated credential for the orchestrator service account:
+Lab 01 creates the UAMI; Lab 03 creates the AKS OIDC issuer. Re-create or verify the federated credential for the orchestrator service account:
 
 ```bash
 source .env.lab
 
 az identity federated-credential create \
-  --name aks-orchestrator \
+  --name fc-orchestrator \
   --identity-name "$UAMI" \
   --resource-group "$RG" \
   --issuer "$AKS_OIDC" \
@@ -75,4 +77,4 @@ az aks show -g "$RG" -n "$AKS" \
 
 ## 6. Production GitHub App Token Broker Stub
 
-The lab uses a Key Vault-hosted `GITHUB-TOKEN`. For production, replace it with a GitHub App plus OIDC-backed token broker that issues short-lived Copilot SDK credentials to the orchestrator pod. Keep the same CSI and Workload Identity pattern, but rotate the credential source from static secret to broker endpoint.
+The labs use a Key Vault-hosted `GITHUB-TOKEN`. For production, replace it with a GitHub App plus OIDC-backed token broker that issues short-lived Copilot SDK credentials to the orchestrator pod. Keep the same CSI and Workload Identity pattern, but rotate the credential source from static secret to broker endpoint.

@@ -1,19 +1,135 @@
-# ZavaShop on AKS + ACA — built by **GitHub Copilot Multi Custom Coding Agents**
+# Deploy a **GitHub Copilot Custom Coding Agent** application to Azure
 
 ![bg](./imgs/arch.png)
 
-> A hands-on lab series that teaches you to deliver a multi-agent retail supply-chain solution **end-to-end through a team of six GitHub Copilot Custom Coding Agents** — from requirements through deployment.
-> Stack: **Microsoft Agent Framework (MAF)** + **GitHub Copilot SDK** (`gpt-5.5`) + **AKS** + **Azure Container Apps** + **Microsoft Entra ID** + **Microsoft Defender for Cloud**.
+> You have just been handed a finished multi-agent application. It was **not** written by hand — a team of six **GitHub Copilot Custom Coding Agents** produced the specs, the agent code, the MCP servers, the tests, the Bicep, and the Helm chart. Your job is the next part: **get it running on Azure, fast, and safely.**
+>
+> Stack: **Microsoft Agent Framework (MAF)** + **GitHub Copilot SDK** (`gpt-5.5`) + **Azure Container Apps** + **AKS** + **Microsoft Entra ID** + **Microsoft Defender for Cloud**.
 
-This repo now includes the packaged ZavaShop stock-out response fleet: five MAF agents, four FastMCP servers, focused tests and evals, Docker packaging, ACA Bicep, AKS Helm, and GitHub Actions deployment gates.
+🇨🇳 [中文版](./README.zh.md)
 
 ---
 
-## 🧭 What makes this lab different
+## 🎬 The situation
 
-Every artifact in this repo — specs, agent code, MCP servers, tests, Bicep, Helm, CI — is authored by a **named GitHub Copilot Custom Coding Agent** that owns one slice of the repo and carries its own tools, skills, and refusal rules.
+A partner team used GitHub Copilot Custom Coding Agents to build **ZavaShop**, an AI-native retail supply-chain control plane. The code is complete, typed, tested, and containerised. What it has never had is an Azure home.
 
-The labs teach the **operating model itself** — not just the code. By the end you will have shipped ZavaShop *and* internalised a repeatable Copilot Custom Agent workflow you can take to any project.
+You are the platform engineer. Four labs, one afternoon, from `git clone` to a live control plane behind Entra ID, Workload Identity, Key Vault, and Defender for Cloud.
+
+**These labs do not ask you to generate code.** The application under `src/` is the deliverable you received. You read it, you package it, you deploy it, you operate it.
+
+| # | Lab | Time | Outcome |
+|---|---|---|---|
+| 01 | [Deployment Foundation](./labs/lab-01-deployment-foundation/README.md) | ~60 min | Take delivery of the app, run the fleet locally with Docker Compose, and lay the Azure foundation every later deployment depends on: RG, ACR, Log Analytics, UAMI, Entra group, Key Vault, Defender, GitHub OIDC |
+| 02 | [Deploy to Container Apps](./labs/lab-02-deploy-container-apps/README.md) | ~60 min | Build 10 images with ACR Tasks and deploy 8 services to **Azure Container Apps** through one reusable **Bicep** module |
+| 03 | [Deploy the AKS Cluster](./labs/lab-03-deploy-aks-cluster/README.md) | ~75 min | Provision a landing-zone-shaped **AKS** cluster: **Microsoft Entra ID** + Azure RBAC, Workload Identity, Key Vault CSI, Azure Policy, Defender — then read and render the **Helm** chart |
+| 04 | [Deploy to Production](./labs/lab-04-deploy-production/README.md) | ~75 min | The real release: gates → `what-if` → **Bicep** to ACA → **Helm** to AKS → smoke → evals → secret-less GitHub Actions CD → Day-2 rollout and rollback |
+
+Every lab has a Chinese mirror at `README.zh.md` in the same folder.
+
+### What flows between the labs
+
+The labs are chained by two git-ignored files at the repo root. Every lab starts by sourcing them, so run the labs in order.
+
+| File | Written by | Contains | Consumed by |
+|---|---|---|---|
+| `.env.lab` | Lab 01 Step 13, appended by Lab 02 Step 6 and Lab 03 Step 4 | `RG`, `ACR`, `LAW`, `KV`, `UAMI_*`, `AKS_ADMINS_GROUP_ID`, `CAE_ID`, `AKS_OIDC`, `AKS_ID` | Labs 02, 03, 04 |
+| `.env.fqdns` | Lab 02 `deploy.sh`, refreshed by Lab 04 | `ZAVA_*_URL` for the 4 specialists and 4 MCP servers | Labs 03, 04 (Helm values + `/plan`) |
+
+Neither file holds a secret — the Copilot token lives only in Key Vault. Lab 01 adds both to `.gitignore` and asserts they are untracked.
+
+---
+
+## 🛍 What ZavaShop is
+
+**ZavaShop** is a fast-growing global retailer with 500+ stores. Their supply chain runs on a mix of legacy ERPs, supplier portals, and ad-hoc spreadsheets. The application you received is their AI-native control plane — a fleet of cooperating agents:
+
+| Application agent | Responsibility | Runtime |
+|---|---|---|
+| `OrchestratorAgent` | The "store manager" — routes a goal to the specialists and merges their answers into one plan | **AKS** — cluster in Lab 03, workload in Lab 04 |
+| `InventoryAgent` | Monitor stock-out risk across stores and warehouses | **ACA** (Lab 02) |
+| `SupplierAgent` | Draft purchase orders through MCP-backed supplier tools | **ACA** (Lab 02) |
+| `LogisticsAgent` | Plan shipments, track ETAs, re-route on disruption | **ACA** (Lab 02) |
+| `PricingAgent` | Recommend dynamic pricing from demand + competitor signals | **ACA** (Lab 02) |
+
+Each specialist reaches its backend capability through a dedicated **MCP server** (`inventory-mcp`, `supplier-mcp`, `shipping-mcp`, `pricing-mcp`) so the model never owns business state.
+
+| Layer | Services | Runtime | Ports and probes |
+|---|---|---|---|
+| Orchestration | `orchestrator` | AKS + Helm (Lab 03 → Lab 04) | Uvicorn on `8000`; `/healthz`, `/readyz`, `/plan`, `/invoke` |
+| Specialists | `inventory`, `supplier`, `logistics`, `pricing` | Azure Container Apps (Lab 02) | Uvicorn on `8000`; `/healthz`, `/readyz`, `/invoke` |
+| MCP tools | `inventory-mcp`, `supplier-mcp`, `shipping-mcp`, `pricing-mcp` | Azure Container Apps (Lab 02) | FastMCP on `8080`; `/healthz`, `/readyz`, `/mcp` |
+
+Images are tagged with the short git SHA and built through ACR Tasks for `linux/amd64`. **No `:latest` anywhere.** The labs keep ACA services at `minReplicas=1` so smoke tests and live evals are reliable; a production landing zone can revisit private ingress and scale-to-zero once DNS, network, and cold-start budgets are designed.
+
+### The business scenario used throughout
+
+> Store `store-101` will stock out of SKU `ZS-1042` by Friday. Produce a plan.
+
+One `POST /plan` to the orchestrator fans out to four specialists, each of which calls its MCP server, and returns a merged plan with `stock_view`, `po_view`, `shipping_view`, `price_view`, `summary`, and `next_actions`. That single call is the acceptance test for the whole deployment.
+
+---
+
+## 🏗 Target architecture
+
+```
+┌──────────────────────────────────────────────────────────────────────────────┐
+│ Security + identity guardrails                                               │
+│                                                                              │
+│  Microsoft Entra ID + Azure RBAC                                             │
+│  - GitHub Actions OIDC -> UAMI (no client secret in the repo)     Lab 01     │
+│  - Key Vault GITHUB-TOKEN -> keyVaultUrl secret on ACA            Lab 02     │
+│  - AKS Entra ID + Azure RBAC, Workload Identity, KV CSI           Lab 03     │
+│                                                                              │
+│  Microsoft Defender for Cloud                                                │
+│  - Defender Containers + KeyVaults plans set to Standard          Lab 01     │
+│  - AKS Defender profile + Azure Policy add-on                     Lab 03     │
+│  - All of the above re-asserted as a hard release gate            Lab 04     │
+└──────────────────────────────────────────────────────────────────────────────┘
+                                      │
+                                      ▼
+┌──────────────────────────────────────────────────────────────────────────────┐
+│ AKS      cluster built in Lab 03  ·  orchestrator rolled out in Lab 04       │
+│  OrchestratorAgent (MAF Workflow + GitHub Copilot SDK)                       │
+│  ServiceAccount: orchestrator-sa + azure.workload.identity/use=true          │
+│  Routes: /healthz, /readyz, /plan, /invoke                                   │
+└─────────────────────────────────────┬────────────────────────────────────────┘
+                                      │ A2A / HTTP (/invoke)
+                                      ▼
+┌──────────────────────────────────────────────────────────────────────────────┐
+│ Azure Container Apps specialists      deployed in Lab 02 · re-rolled Lab 04  │
+│  inventory  | supplier  | logistics  | pricing                               │
+│  Routes: /healthz, /readyz, /invoke                                          │
+└─────────────────────────────────────┬────────────────────────────────────────┘
+                                      │ Copilot SDK remote MCP over HTTP
+                                      ▼
+┌──────────────────────────────────────────────────────────────────────────────┐
+│ Azure Container Apps MCP servers      deployed in Lab 02 · re-rolled Lab 04  │
+│  inventory-mcp | supplier-mcp | shipping-mcp | pricing-mcp                   │
+│  Routes: /healthz, /readyz, /mcp                                             │
+└──────────────────────────────────────────────────────────────────────────────┘
+```
+
+### Entra ID and Defender for Cloud in the architecture
+
+These controls sit around the fleet rather than inside the retail business logic. Lab 01 and Lab 03 provision them; Lab 04 re-checks them as a hard gate before workloads roll forward.
+
+| Control | Where it appears | What it protects |
+|---|---|---|
+| Microsoft Entra ID for AKS | Lab 03 creates the cluster with `--enable-aad --enable-azure-rbac`. Human access is Entra ID + Azure RBAC — never admin kubeconfig. | Prevents unmanaged local cluster credentials from becoming the normal operator path. |
+| GitHub Actions OIDC | Lab 01 creates the federated credential; the workflow grants `id-token: write` and uses `azure/login@v2`. | Lets CI/CD authenticate to Azure without storing a client secret in GitHub. |
+| Workload Identity and UAMI | Lab 03 federates `system:serviceaccount:zavashop:orchestrator-sa` to the UAMI; ACA apps use the same user-assigned identity. | Gives workloads Azure identity without embedding passwords or service principal secrets. |
+| Key Vault secret delivery | AKS reads `GITHUB-TOKEN` through Secrets Store CSI; ACA reads it through a `keyVaultUrl` secret. | Keeps Copilot credentials out of Helm values, Bicep parameters, images, and source control. |
+| Defender for Cloud | Lab 01 sets `Containers` and `KeyVaults` to `Standard`; Lab 03 enables the AKS Defender profile. | Blocks rollout when container and secret surfaces are not covered by the security baseline. |
+| Azure Policy add-on | Enabled at cluster creation in Lab 03, asserted in Lab 04. | Keeps the cluster aligned with the AKS landing-zone baseline before application rollout. |
+
+---
+
+## 🤖 Background: how this application was produced
+
+You do not need to run these agents to complete the labs — but it is worth knowing where the code came from, because the same operating model is what you would use to extend it.
+
+Every artifact in this repo — specs, agent code, MCP servers, tests, Bicep, Helm, CI — was authored by a **named GitHub Copilot Custom Coding Agent** that owns one slice of the repo and carries its own tools, skills, and refusal rules.
 
 ```
        ┌─────────────────────── GitHub Copilot Multi Custom Agents ───────────────────────┐
@@ -33,118 +149,6 @@ The labs teach the **operating model itself** — not just the code. By the end 
        └──────────────────────────────────────────────────────────────────────────────────┘
 ```
 
-Each agent is a file under [.github/agents/](.github/agents/) (`*.agent.md`). You invoke it by typing `/<agent-name>` in Copilot Chat. Three workflow prompts in [.github/prompts/](.github/prompts/) chain the agents together: `/feature-from-issue`, `/spec-to-code`, `/ship-it`.
-
-## 🚀 Fast Deploy Track
-
-The full lab path teaches every engineering step. For workshops and demos, use the **fast deploy track**: let the workflow prompts drive the custom-agent handoffs, generate the application code and deployment artifacts as one packaged application, then deploy the built images through a single `/ship-it` flow.
-
-Fast path:
-
-1. Complete [Lab 01](./labs/lab-01-environment-setup/README.md) once to create the Azure foundation.
-2. Run `/feature-from-issue` with the ZavaShop stock-out scenario. Follow its handoffs to the owning custom agents instead of manually designing each coding prompt.
-3. Run `/ship-it` to build all service images, deploy ACA specialists/MCP servers, deploy the AKS orchestrator, smoke-test `/healthz` + `/readyz`, and run evals.
-
-This reduces the application coding portion from open-ended manual prompting into a guided workflow while preserving the same generated structure under `src/`, `tests/`, and `infra/`. The resulting deployment must still satisfy the AKS landing zone, Entra ID, and Defender for Cloud gates described in Labs 01 and 05.
-
-### Current packaged fleet
-
-The fast path produces these runtime services:
-
-| Layer | Services | Runtime | Ports and probes |
-|---|---|---|---|
-| Orchestration | `orchestrator` | AKS + Helm | Uvicorn on `8000`; `/healthz`, `/readyz`, `/plan`, `/invoke` |
-| Specialists | `inventory`, `supplier`, `logistics`, `pricing` | Azure Container Apps | Uvicorn on `8000`; `/healthz`, `/readyz`, `/invoke` |
-| MCP tools | `inventory-mcp`, `supplier-mcp`, `shipping-mcp`, `pricing-mcp` | Azure Container Apps | FastMCP on `8080`; `/healthz`, `/readyz`, `/mcp` |
-
-Images are tagged with the short git SHA and built through ACR Tasks for `linux/amd64`. Lab 05 keeps ACA specialists and MCP servers at `minReplicas=1` so workshop smoke tests and live evals are reliable; production landing zones can revisit private ingress and scale-to-zero after DNS, network, and cold-start budgets are designed.
-
----
-
-## 🛍 The Story: ZavaShop
-
-**ZavaShop** is a fast-growing global retailer with 500+ stores. Their supply chain runs on a mix of legacy ERPs, supplier portals, and ad-hoc spreadsheets. The Ops team wants an AI-native control plane — a fleet of cooperating agents that:
-
-| Application Agent | Responsibility |
-|---|---|
-| `InventoryAgent` | Monitor stock-out risk across stores and warehouses |
-| `SupplierAgent` | Negotiate purchase orders with suppliers via MCP-backed tools |
-| `LogisticsAgent` | Plan shipments, track ETAs, re-route on disruption |
-| `PricingAgent` | Recommend dynamic pricing from demand + competitor signals |
-| `OrchestratorAgent` | The "store manager" — powered by the **GitHub Copilot SDK**, routes goals to the specialist agents |
-
-The orchestrator runs as a **long-lived service on AKS**. The specialist agents and MCP servers run on **Azure Container Apps**. In the lab deployment they are exposed by ACA HTTPS FQDNs with `minReplicas=1` for repeatable smoke/eval runs; the same Bicep module can be adjusted for private ingress and scale-to-zero in a production landing zone. Each specialist reaches its backend capability through a dedicated **MCP server** so the LLM never owns business state.
-
-```
-┌──────────────────────────────────────────────────────────────────────────────┐
-│ Security + identity guardrails                                               │
-│                                                                              │
-│  Microsoft Entra ID + Azure RBAC                                             │
-│  - GitHub Actions OIDC -> UAMI                                               │
-│  - AKS Workload Identity / ACA managed identity                              │
-│  - Key Vault GITHUB-TOKEN -> CSI on AKS / secretref on ACA                   │
-│                                                                              │
-│  Microsoft Defender for Cloud                                                │
-│  - AKS Defender monitoring                                                   │
-│  - Defender Containers + KeyVaults plans must be Standard                    │
-└──────────────────────────────────────────────────────────────────────────────┘
-                                      │
-                                      ▼
-┌──────────────────────────────────────────────────────────────────────────────┐
-│ AKS                                                                          │
-│  OrchestratorAgent (MAF Workflow + GitHub Copilot SDK)                       │
-│  ServiceAccount: orchestrator-sa + azure.workload.identity/use=true          │
-│  Routes: /healthz, /readyz, /plan, /invoke                                   │
-└─────────────────────────────────────┬────────────────────────────────────────┘
-                                      │ A2A / HTTP (/invoke)
-                                      ▼
-┌──────────────────────────────────────────────────────────────────────────────┐
-│ Azure Container Apps specialists                                             │
-│  inventory  | supplier  | logistics  | pricing                               │
-│  Routes: /healthz, /readyz, /invoke                                          │
-└─────────────────────────────────────┬────────────────────────────────────────┘
-                                      │ Copilot SDK remote MCP over HTTP
-                                      ▼
-┌──────────────────────────────────────────────────────────────────────────────┐
-│ Azure Container Apps MCP servers                                             │
-│  inventory-mcp | supplier-mcp | shipping-mcp | pricing-mcp                  │
-│  Routes: /healthz, /readyz, /mcp                                             │
-└──────────────────────────────────────────────────────────────────────────────┘
-```
-
-### Entra ID and Defender for Cloud in the architecture
-
-These controls sit around the fleet rather than inside the retail business logic. They are enforced by Lab 01 infrastructure and re-checked by the `/ship-it` and GitHub Actions deployment path before workloads roll forward.
-
-| Control | Where it appears | What it protects |
-|---|---|---|
-| Microsoft Entra ID for AKS | The deployment preflight checks that the AKS `aadProfile` exists before deploying. Human cluster access is expected to use Entra ID and Azure RBAC, not admin kubeconfig. | Prevents unmanaged local cluster credentials from becoming the normal operator path. |
-| GitHub Actions OIDC | The workflow grants `id-token: write` and uses `azure/login@v2` with `AZURE_CLIENT_ID`, tenant, and subscription values. | Lets CI/CD authenticate to Azure without storing a client secret in GitHub. |
-| Workload Identity and UAMI | The AKS orchestrator uses `orchestrator-sa` with the Workload Identity label; ACA apps use the same user-assigned managed identity pattern. | Gives workloads Azure identity without embedding passwords or service principal secrets. |
-| Key Vault secret delivery | AKS reads `GITHUB-TOKEN` through Secrets Store CSI; ACA reads it through Key Vault `secretref`. | Keeps Copilot credentials out of Helm values, Bicep parameters, images, and source control. |
-| Defender for Cloud | The deployment preflight requires AKS Defender security monitoring and `Standard` tiers for `Containers` and `KeyVaults`. | Blocks rollout when container and secret surfaces are not covered by the lab security baseline. |
-| Azure Policy gate | The deployment preflight checks the AKS Azure Policy add-on. | Keeps the cluster aligned with the AKS landing-zone baseline before application rollout. |
-
-### Story arc across the labs
-
-The five labs are five chapters of one story — ZavaShop going from a blank Azure subscription to a live, observable retail control plane:
-
-| Lab | Chapter | What changes in ZavaShop's world |
-|---|---|---|
-| 01 | **Day 0 — lay the foundation** | The platform team provisions the loading docks (ACR), the shop floor (AKS), the bursty back-of-house (ACA), the safe (Key Vault), and the single staff badge (UAMI) that every worker will wear. |
-| 02 | **Hire the specialists** | Each business role becomes a typed MAF `GitHubCopilotAgent` wrapped by the shared `_RunnableAgent` adapter. Inventory, Supplier, Logistics, Pricing, and the Orchestrator are born — every external system kept behind an MCP server so the LLM never owns business state. Fast-track users can drive this through `/feature-from-issue`. |
-| 03 | **Make them a team** | The orchestrator stops being a one-shot LLM call and becomes a deterministic `Workflow`. Secrets leave `.env` and move into Key Vault. The whole fleet boots locally via Docker Compose so a `/plan` can be debugged end-to-end without the cloud. |
-| 04 | **Earn trust before opening day** | Unit, integration, and live eval checks pin the fleet's behaviour. The same `uv run poe check` runs in GitHub Actions, so even Copilot-authored PRs must pass the human bar. |
-| 05 | **Open the store** | `/ship-it` rolls the orchestrator to AKS behind Workload Identity + CSI-mounted token, and the 8 specialist/MCP services to ACA with Key Vault `secretref`, external lab FQDNs, and `minReplicas=1` for smoke reliability. GitHub Actions OIDC re-runs the same pipeline on every `main`, with AKS landing zone, Entra ID, Azure Policy, monitoring, and Defender for Cloud checks. |
-
-> ⚠️ Don't confuse the two layers:
-> - **Application agents** (the table above) — the runtime ZavaShop fleet you deploy.
-> - **GitHub Copilot Custom Coding Agents** (`/requirements-analyst` etc.) — the dev-time team that *writes* the application agents for you.
-
----
-
-## 👥 Meet the GitHub Copilot Custom Coding Agents
-
 | Phase | Coding Agent | Owns | File |
 |---|---|---|---|
 | Requirements | `/requirements-analyst` | `specs/*.md` only — refuses to write code | [.github/agents/requirements-analyst.agent.md](.github/agents/requirements-analyst.agent.md) |
@@ -154,103 +158,84 @@ The five labs are five chapters of one story — ZavaShop going from a blank Azu
 | Tests | `/test-author` | `tests/**` only — never edits `src/` | [.github/agents/test-author.agent.md](.github/agents/test-author.agent.md) |
 | Deploy | `/deploy-engineer` | `infra/**`, `.github/workflows/**` | [.github/agents/deploy-engineer.agent.md](.github/agents/deploy-engineer.agent.md) |
 
-Shared, agent-agnostic knowledge lives in [.github/skills/](.github/skills/) — every coding agent declares which skills it must consult before writing code.
+Shared, agent-agnostic knowledge lives in [.github/skills/](.github/skills/). Workflow prompts in [.github/prompts/](.github/prompts/) chain the agents: `/feature-from-issue`, `/spec-to-code`, `/ship-it`.
 
-Workflow prompts in [.github/prompts/](.github/prompts/):
+> ⚠️ Don't confuse the two layers:
+> - **Application agents** (`InventoryAgent`, `OrchestratorAgent`, …) — the runtime ZavaShop fleet you deploy in these labs.
+> - **GitHub Copilot Custom Coding Agents** (`/requirements-analyst`, …) — the dev-time team that *wrote* the application agents.
 
-- **`/feature-from-issue`** — issue → spec → code → tests → PR → deploy.
-- **`/spec-to-code`** — drive an existing spec through code + tests.
-- **`/ship-it`** — quality gate → landing-zone preflight → ACR Tasks build → ACA/AKS rollout → `/healthz` + `/readyz` smoke → evals.
-
-> **Hard rule (see [AGENTS.md](AGENTS.md) §1.1):** for every code change, invoke the right `/<agent>` from the table above. Each agent carries the tools, skills, and refusal rules needed for its slice of the repo.
-
----
-
-## 🗺 Lab Index
-
-| # | Lab | Coding agents you'll drive | What you build |
-|---|---|---|---|
-| 01 | [Environment Setup](./labs/lab-01-environment-setup/README.md) | — | Azure subscription, landing-zone-aware AKS cluster, ACA env, ACR, Key Vault, Entra ID/RBAC, Defender for Cloud, Workload Identity, then **install the 6 Copilot Custom Agents** |
-| 02 | [Agent Creation](./labs/lab-02-agent-creation/README.md) | `/requirements-analyst` → `/mcp-builder` ×4 → `/agent-builder` ×4 → `/orchestrator-architect` | The five ZavaShop application agents in Python with MAF + Copilot SDK |
-| 03 | [Multi-Agent Orchestration & Config](./labs/lab-03-orchestration/README.md) | `/requirements-analyst` → `/spec-to-code` → `/orchestrator-architect` | MAF Workflow, A2A wiring, MCP tools, Key Vault hydration, Docker Compose |
-| 04 | [Testing](./labs/lab-04-testing/README.md) | `/test-author` (unit + MCP + integration + evals) → remote **GitHub Copilot Coding Agent** PR loop | Full test pyramid; assign GitHub-side Copilot to a failing-eval issue |
-| 05 | [Deployment & Run](./labs/lab-05-deployment/README.md) | `/deploy-engineer` + `/ship-it` | Packaged app images, Helm for AKS, Bicep for ACA, OIDC-federated CD, readiness probes, landing zone security gates, Day-2 partial roll |
-
-Each lab opens with its own **ZavaShop story** beat and a curated **Microsoft Learn knowledge points** list — read those first to anchor the operations in concepts.
+**If you extend the app** (see the Day-2 step in Lab 04): per [AGENTS.md](AGENTS.md) §1.1, invoke the `/<agent>` whose `Owns` cell matches the path you are touching, rather than free-form prompting.
 
 ---
 
 ## 📚 Microsoft Learn knowledge map
 
-The Learn references are grouped by the concern they answer. Every link is also embedded inside the lab that uses it.
+Learn references are grouped by the concern they answer. Every link is also embedded inside the lab that uses it.
 
 ### Platform foundations (Lab 01)
 
-- [AKS landing zone accelerator](https://learn.microsoft.com/azure/cloud-adoption-framework/scenarios/app-platform/aks/landing-zone-accelerator)
-- [AKS architecture guidance](https://learn.microsoft.com/azure/architecture/reference-architectures/containers/aks-start-here)
-- [Azure Kubernetes Service (AKS) overview](https://learn.microsoft.com/azure/aks/intro-kubernetes)
-- [Azure Container Apps overview](https://learn.microsoft.com/azure/container-apps/overview)
 - [Azure Container Registry introduction](https://learn.microsoft.com/azure/container-registry/container-registry-intro)
 - [Azure Key Vault overview](https://learn.microsoft.com/azure/key-vault/general/overview)
 - [Managed identities for Azure resources](https://learn.microsoft.com/entra/identity/managed-identities-azure-resources/overview)
 - [Microsoft Defender for Cloud](https://learn.microsoft.com/azure/defender-for-cloud/defender-for-cloud-introduction)
+- [GitHub Actions OIDC federation with Azure](https://learn.microsoft.com/azure/developer/github/connect-from-azure-openid-connect)
+- [Workload Identity Federation](https://learn.microsoft.com/entra/workload-id/workload-identity-federation)
 
-### Identity & secret-less auth (Labs 01, 03, 05)
+### Container Apps + Bicep (Lab 02)
 
+- [Azure Container Apps overview](https://learn.microsoft.com/azure/container-apps/overview)
+- [Microservices with Container Apps and Bicep](https://learn.microsoft.com/azure/container-apps/microservices-bicep)
+- [ACR Tasks](https://learn.microsoft.com/azure/container-registry/container-registry-tasks-overview)
+- [Managed identity in Azure Container Apps](https://learn.microsoft.com/azure/container-apps/managed-identity)
+- [Reference Key Vault secrets in Container Apps](https://learn.microsoft.com/azure/container-apps/manage-secrets)
+- [Health probes in Container Apps](https://learn.microsoft.com/azure/container-apps/health-probes)
+- [KEDA scale rules on Container Apps](https://learn.microsoft.com/azure/container-apps/scale-app)
+- [Bicep modules](https://learn.microsoft.com/azure/azure-resource-manager/bicep/modules)
+
+### AKS, Entra ID and Helm (Lab 03)
+
+- [Azure Kubernetes Service (AKS) overview](https://learn.microsoft.com/azure/aks/intro-kubernetes)
+- [AKS core concepts](https://learn.microsoft.com/azure/aks/core-aks-concepts)
+- [AKS architecture guidance](https://learn.microsoft.com/azure/architecture/reference-architectures/containers/aks-start-here)
+- [AKS landing zone accelerator](https://learn.microsoft.com/azure/cloud-adoption-framework/scenarios/app-platform/aks/landing-zone-accelerator)
 - [Microsoft Entra ID integration with AKS](https://learn.microsoft.com/azure/aks/enable-authentication-microsoft-entra-id)
 - [Use Azure RBAC for Kubernetes Authorization](https://learn.microsoft.com/azure/aks/manage-azure-rbac)
 - [AKS Workload Identity](https://learn.microsoft.com/azure/aks/workload-identity-overview)
-- [Workload Identity Federation](https://learn.microsoft.com/entra/workload-id/workload-identity-federation)
-- [GitHub Actions OIDC federation with Azure](https://learn.microsoft.com/azure/developer/github/connect-from-azure-openid-connect)
 - [Secrets Store CSI driver on AKS](https://learn.microsoft.com/azure/aks/csi-secrets-store-driver)
-- [`DefaultAzureCredential` for Python](https://learn.microsoft.com/python/api/overview/azure/identity-readme)
+- [Azure CNI Overlay networking](https://learn.microsoft.com/azure/aks/azure-cni-overlay)
+- [Azure Policy for AKS](https://learn.microsoft.com/azure/aks/use-azure-policy)
+- [Microsoft Defender for Containers](https://learn.microsoft.com/azure/defender-for-cloud/defender-for-containers-introduction)
+- [Container insights](https://learn.microsoft.com/azure/azure-monitor/containers/container-insights-overview)
+- [AKS Helm quickstart](https://learn.microsoft.com/azure/aks/quickstart-helm)
 
-### Agents, MCP & the Copilot SDK (Labs 02, 03)
+### Release engineering (Lab 04)
+
+- [Bicep `what-if` deployments](https://learn.microsoft.com/azure/azure-resource-manager/bicep/deploy-what-if)
+- [Deploy Bicep from GitHub Actions](https://learn.microsoft.com/azure/azure-resource-manager/bicep/deploy-github-actions)
+- [Deployment and cluster reliability best practices](https://learn.microsoft.com/azure/aks/best-practices-app-cluster-reliability)
+- [Container Apps revisions and traffic](https://learn.microsoft.com/azure/container-apps/revisions)
+- [Container insights query examples](https://learn.microsoft.com/azure/azure-monitor/containers/container-insights-log-query)
+- [AKS security baseline](https://learn.microsoft.com/security/benchmark/azure/baselines/aks-security-baseline)
+
+### The application stack (background reading)
 
 - [Microsoft Agent Framework](https://learn.microsoft.com/agent-framework/)
 - [Customize GitHub Copilot Chat with custom agents](https://docs.github.com/copilot/customizing-copilot/about-customizing-github-copilot-chat-responses)
-- [Model Context Protocol on Microsoft Learn](https://learn.microsoft.com/azure/developer/ai/)
-- [Docker Compose for multi-container development](https://learn.microsoft.com/visualstudio/docker/tutorials/multi-container-apps)
+- [`DefaultAzureCredential` for Python](https://learn.microsoft.com/python/api/overview/azure/identity-readme)
 - [Observability for AI apps with OpenTelemetry](https://learn.microsoft.com/azure/azure-monitor/app/opentelemetry-overview)
-
-### Testing & quality gate (Lab 04)
-
-- [pytest with the Azure SDK](https://learn.microsoft.com/azure/developer/python/sdk/azure-sdk-test-overview)
-- [Continuous integration with GitHub Actions](https://learn.microsoft.com/training/modules/github-actions-ci/)
-- [Safety system for AI applications](https://learn.microsoft.com/azure/ai-services/openai/concepts/safety-system)
-
-### Deployment (Lab 05)
-
-- [AKS Helm quickstart](https://learn.microsoft.com/azure/aks/quickstart-helm)
-- [Azure Container Apps with Bicep](https://learn.microsoft.com/azure/container-apps/microservices-bicep)
-- [ACR Tasks](https://learn.microsoft.com/azure/container-registry/container-registry-tasks-overview)
-- [KEDA scale rules on Container Apps](https://learn.microsoft.com/azure/container-apps/scale-app)
-- [Bicep `what-if` deployments](https://learn.microsoft.com/azure/azure-resource-manager/bicep/deploy-what-if)
 
 ---
 
 ## ✅ Prerequisites
 
-- Azure subscription with **Owner** on a resource group
-- Azure CLI ≥ 2.65, `kubectl`, `helm`, `docker`, `uv` (or `pip`)
-- Python **3.11+**
-- A **GitHub Copilot** subscription (Individual / Business / Enterprise)
-- VS Code with **GitHub Copilot** + **GitHub Copilot Chat** extensions
-  - After cloning, run **`Developer: Reload Window`** so VS Code discovers `.github/agents/*.agent.md` and the six ZavaShop agents appear in the `/`-invocation picker.
+- Azure subscription with **Owner** on a subscription or resource group (you create role assignments and federated credentials)
+- Permission to **create a Microsoft Entra ID group**
+- Azure CLI ≥ 2.65 (`az`), plus `kubectl`, `helm`, `docker`, `git`, `jq`, `curl`, `gh`
+- **`uv`** and Python **3.11+**
+- A **GitHub Copilot** subscription and a fine-grained PAT with Copilot read access
+- A GitHub account able to set repository secrets and variables
 
----
-
-## 📚 How to use Copilot in this lab
-
-1. **Read [AGENTS.md](./AGENTS.md)** — the house rules every coding agent obeys.
-2. Open Copilot Chat. Type `/` and confirm you see `requirements-analyst`, `mcp-builder`, `agent-builder`, `orchestrator-architect`, `test-author`, `deploy-engineer`.
-3. Start every task by **invoking the right coding agent**, not by free-form prompting:
-   ```
-   /requirements-analyst
-   We need a returns-handling pipeline. Goal, contracts, eval scenarios.
-   ```
-4. When an agent finishes, it ends with a **handoff line** naming the next `/<agent>` to invoke. Follow it.
-5. For multi-step changes, run a workflow prompt: `/feature-from-issue`, `/spec-to-code`, or `/ship-it`.
+Start at [Lab 01](./labs/lab-01-deployment-foundation/README.md) — it verifies all of the above before you spend anything.
 
 ---
 
@@ -258,18 +243,22 @@ The Learn references are grouped by the concern they answer. Every link is also 
 
 ```
 .
-├── AGENTS.md                        # House rules — read this first
+├── AGENTS.md                        # House rules for AI coding agents
 ├── pyproject.toml                    # uv/ruff/pyright/pytest/poe configuration
-├── .dockerignore                     # Keeps secrets/caches out of ACR build context
+├── docker-compose.yml                # Local 9-service fleet used in Lab 01
 ├── .github/
 │   ├── copilot-instructions.md      # Always-on Copilot context
 │   ├── agents/                      # 6 Copilot Custom Coding Agents (*.agent.md)
 │   ├── skills/                      # Shared knowledge consulted by the agents
 │   ├── prompts/                     # Workflow prompts (/feature-from-issue, /spec-to-code, /ship-it)
 │   ├── instructions/                # Scoped *.instructions.md (python, k8s, agent-framework)
-│   └── workflows/                   # CI/CD (authored by /deploy-engineer)
-├── labs/                            # The 5 step-by-step labs
-├── specs/                           # Authored by /requirements-analyst
+│   └── workflows/                   # CI + OIDC-federated CD
+├── labs/
+│   ├── lab-01-deployment-foundation/ # Take delivery, run locally, lay the Azure foundation
+│   ├── lab-02-deploy-container-apps/ # ACR Tasks + Bicep -> Azure Container Apps
+│   ├── lab-03-deploy-aks-cluster/    # AKS + Entra ID + Workload Identity + Helm
+│   └── lab-04-deploy-production/     # Real release, evals, CD, Day-2 operations
+├── specs/                           # The specs the coding agents worked from
 ├── src/
 │   ├── Dockerfile.base               # Shared base image for app agents
 │   ├── agents/                      # ZavaShop application agents (one folder each)
@@ -285,9 +274,9 @@ The Learn references are grouped by the concern they answer. Every link is also 
 │   │   └── pricing/
 │   └── shared/                      # Settings, telemetry, Copilot client, A2A server factory
 ├── infra/
-│   ├── aks/                         # Helm chart + WIF docs (authored by /deploy-engineer)
+│   ├── aks/                         # Helm chart + Workload Identity docs
 │   └── aca/                         # ACA Bicep module + deploy.sh + FQDN export
-└── tests/                           # Unit · integration · live evals (authored by /test-author)
+└── tests/                           # Unit · integration · live evals
 ```
 
 ## License
